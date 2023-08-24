@@ -13,7 +13,7 @@ Run the program using the command
 `cargo pgrx run`
 
 Create the wrapper extension
-`create extension clerk_fdw`
+`create extension clerk_fdw;`
 
 Create the foreign data wrapper:
 
@@ -30,9 +30,7 @@ Connect to clerk using your credentials:
 create server my_clerk_server
   foreign data wrapper clerk_wrapper
   options (
-    api_key '<clerk secret Key>' -- Clerk API key, required
-  );
-
+    api_key '<clerk secret Key>')
 ```
 
 Create Foreign Table:
@@ -40,14 +38,14 @@ Create Foreign Table:
 ```
 
 create foreign table clerk (
-  id string,
+  id text,
   first_name text,
   email text,
   last_name text,
   gender text,
   created_at bigint,
   last_sign_in_at bigint,
-  phone_numbers bigint
+  phone_numbers bigint,
   username text,
   updated_at bigint,
   organization text,
