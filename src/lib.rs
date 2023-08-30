@@ -148,7 +148,7 @@ fn resp_to_rows(obj: &str, resp: &JsonValue, tgt_cols: &[Column]) -> Vec<Row> {
 }
 
 #[wrappers_fdw(
-    version = "0.1.4",
+    version = "0.2.0",
     author = "Jay Kothari",
     website = "https://tembo.io"
 )]
