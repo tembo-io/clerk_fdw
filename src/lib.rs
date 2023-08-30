@@ -17,25 +17,33 @@ fn body_to_rows(
     normal_cols: Vec<(&str, &str, &str)>,
     tgt_cols: &[Column],
 ) -> Vec<Row> {
-    info!("body_to_rows");
-
-    // info!("resp[0]: {:#?}", resp[0]);
-    // info!("obj_key: {:#?}", obj_key);
-    // info!("normal_cols: {:#?}", normal_cols);
-    // info!("tgt_cols: {:#?}", tgt_cols);
+    info!("code in body_to_rows");
+    info!("obj_key: {}", obj_key);
+    info!("normal_cols: {:#?}", normal_cols);
+    info!("tgt_cols: {:#?}", tgt_cols);
+    info!("resp[0]: {:#?}", resp);
 
     let mut result = Vec::new();
 
-    let objs = match resp
-        .as_object()
-        .and_then(|v| v.get(obj_key))
-        .and_then(|v| v.as_array())
-    {
-        Some(objs) => objs,
-        None => return result,
+    info!("before match");
+    let objs = if resp.is_array() {
+        // If `resp` is directly an array
+        resp.as_array().unwrap()
+    } else {
+        // If `resp` is an object containing the array under `obj_key`
+        match resp
+            .as_object()
+            .and_then(|v| v.get(obj_key))
+            .and_then(|v| v.as_array())
+        {
+            Some(objs) => objs,
+            None => return result,
+        }
     };
+    info!("after match");
 
     for obj in objs {
+        info!("obj: {:#?}", obj);
         let mut row = Row::new();
 
         // extract normal columns
@@ -67,7 +75,6 @@ fn body_to_rows(
         }
 
         warning!("row: {:#?}", row);
-        info!("code in body_to_rows");
         // put all properties into 'attrs' JSON column
         if tgt_cols.iter().any(|c| &c.name == "attrs") {
             let attrs = serde_json::from_str(&obj.to_string()).unwrap();
@@ -76,7 +83,7 @@ fn body_to_rows(
 
         result.push(row);
     }
-
+    info!("result: {:#?}", result);
     result
 }
 
@@ -88,9 +95,9 @@ fn resp_to_rows(obj: &str, resp: &JsonValue, tgt_cols: &[Column]) -> Vec<Row> {
         "users" => {
             result = body_to_rows(
                 resp,
-                "users",
+                "data",
                 vec![
-                    ("user_id", "user_id", "string"),
+                    ("id", "user_id", "string"),
                     ("first_name", "first_name", "string"),
                     ("last_name", "last_name", "string"),
                     ("email", "email", "string"),
@@ -107,9 +114,9 @@ fn resp_to_rows(obj: &str, resp: &JsonValue, tgt_cols: &[Column]) -> Vec<Row> {
         "organizations" => {
             result = body_to_rows(
                 resp,
-                "organizations",
+                "data",
                 vec![
-                    ("organization_id", "organization_id", "string"),
+                    ("id", "organization_id", "string"),
                     ("name", "name", "string"),
                     ("slug", "slug", "string"),
                     ("created_at", "created_at", "i64"),
@@ -234,17 +241,14 @@ impl ForeignDataWrapper for ClerkFdw {
 
         self.scan_result = None;
         self.tgt_cols = columns.to_vec();
-        info!("tgt_cols: {:#?}", self.tgt_cols);
         let api_key = self.token.as_ref().unwrap();
 
         if let Some(client) = &self.client {
             let mut result = Vec::new();
 
             let url = self.build_url(&obj, options);
-            // warning!("url: {:#?}", url);
 
             // this is where i need to make changes
-
             self.rt.block_on(async {
                 let resp = client
                     .get(&url)
@@ -257,7 +261,6 @@ impl ForeignDataWrapper for ClerkFdw {
                         if res.status().is_success() {
                             let body = res.text().await.unwrap();
                             let json: JsonValue = serde_json::from_str(&body).unwrap();
-                            info!("columns: {:#?}", columns);
                             let mut rows = resp_to_rows(&obj, &json, &self.tgt_cols[..]);
                             result.append(&mut rows);
                         } else {
