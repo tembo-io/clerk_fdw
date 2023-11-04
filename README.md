@@ -28,7 +28,6 @@ Create Foreign Table:
 ### User table
 
 This table will store information about the users.
-Note: The current limit is 500 users. This should be increased in future versions.
 
 ```
 create foreign table clerk_users (
@@ -53,7 +52,6 @@ create foreign table clerk_users (
 ### Organization Table
 
 This table will store information about the organizations.
-Note: The current limit is 500 organizations. This should be increased in future versions.
 
 ```
 create foreign table clerk_organizations (
