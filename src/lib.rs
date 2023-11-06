@@ -167,16 +167,26 @@ impl ClerkFdw {
     // TODO: will have to incorportate offset at some point
     const PAGE_SIZE: usize = 500;
 
-    fn build_url(&self, obj: &str, options: &HashMap<String, String>) -> String {
+    fn build_url(&self, obj: &str, options: &HashMap<String, String>, offset: usize) -> String {
         match obj {
             "users" => {
                 let base_url = Self::DEFAULT_BASE_URL.to_owned();
-                let ret = format!("{}/users?limit={}", base_url, Self::PAGE_SIZE,);
+                let ret = format!(
+                    "{}/users?limit={}&offset={}",
+                    base_url,
+                    Self::PAGE_SIZE,
+                    offset
+                );
                 ret
             }
             "organizations" => {
                 let base_url = Self::DEFAULT_BASE_URL.to_owned();
-                let ret = format!("{}/organizations?limit={}", base_url, Self::PAGE_SIZE,);
+                let ret = format!(
+                    "{}/organizations?limit={}&offset={}",
+                    base_url,
+                    Self::PAGE_SIZE,
+                    offset
+                );
                 ret
             }
             "organization_memberships" => {
@@ -249,7 +259,7 @@ impl ForeignDataWrapper for ClerkFdw {
 
             if obj == "organization_memberships" {
                 // Get all organizations first
-                let org_url = self.build_url("organizations", options);
+                let org_url = self.build_url("organizations", options, 0);
 
                 self.rt.block_on(async {
                     let org_resp = client
@@ -310,32 +320,41 @@ impl ForeignDataWrapper for ClerkFdw {
                     }
                 });
             } else {
-                let url = self.build_url(&obj, options);
-
                 // this is where i need to make changes
                 self.rt.block_on(async {
-                    let resp = client
-                        .get(&url)
-                        .header("Authorization", format!("Bearer {}", api_key))
-                        .send()
-                        .await;
+                    let mut offset = 0;
+                    loop {
+                        let url = self.build_url(&obj, options, offset);
+                        let resp = client
+                            .get(&url)
+                            .header("Authorization", format!("Bearer {}", api_key))
+                            .send()
+                            .await;
 
-                    match resp {
-                        Ok(res) => {
-                            if res.status().is_success() {
-                                let body = res.text().await.unwrap();
-                                let json: JsonValue = serde_json::from_str(&body).unwrap();
-                                let mut rows = resp_to_rows(&obj, &json, &self.tgt_cols[..]);
-                                result.append(&mut rows);
-                            } else {
-                                warning!("Failed request with status: {}", res.status());
+                        match resp {
+                            Ok(res) => {
+                                if res.status().is_success() {
+                                    let body = res.text().await.unwrap();
+                                    let json: JsonValue = serde_json::from_str(&body).unwrap();
+                                    let mut rows = resp_to_rows(&obj, &json, &self.tgt_cols[..]);
+                                    if rows.len() < Self::PAGE_SIZE {
+                                        result.append(&mut rows);
+                                        break;
+                                    } else {
+                                        result.append(&mut rows);
+                                        offset += Self::PAGE_SIZE;
+                                    }
+                                } else {
+                                    warning!("Failed request with status: {}", res.status());
+                                    break;
+                                }
                             }
-                        }
-                        Err(error) => {
-                            warning!("Error: {:#?}", error);
-                            return;
-                        }
-                    };
+                            Err(error) => {
+                                warning!("Error: {:#?}", error);
+                                return;
+                            }
+                        };
+                    }
                 });
             }
 
