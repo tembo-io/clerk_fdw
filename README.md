@@ -1,6 +1,6 @@
 ## Clerk_fdw
 
-This section is about how to use the clerk foreign data wrapper in the data warehouse to collect valuable analytics
+This is a simple open-source data wrapper that bridges the gap between your Postgres database and [Clerk](https://clerk.com/) a leading user management solution. For more info, check out the [blog post](https://tembo.io/blog/clerk-fdw/)!
 
 ### Pre-requisistes
 
