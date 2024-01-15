@@ -103,7 +103,7 @@ jobs:
           cargo install pg-trunk
       - name: trunk build
         working-directory: ./
-        run: trunk build
+        run: trunk build --pg-version 15
       - name: trunk publish
         working-directory: ./
         env:
@@ -111,7 +111,7 @@ jobs:
         run: |
           ext_ver=$(stoml Cargo.toml package.version)
           ext_repo=$(stoml Cargo.toml package.repository)
-          trunk publish clerk_fdw --version ${ext_ver} --file .trunk/clerk_fdw-${ext_ver}.tar.gz --description "Foreign Data wrapper for clerk" --homepage "https://github.com/tembo-io/clerk_fdw" --repository "https://github.com/tembo-io/clerk_fdw" --license "PostgreSQL" --category connectors
+          trunk publish clerk_fdw --version ${ext_ver} --description "Foreign Data wrapper for clerk" --homepage "https://github.com/tembo-io/clerk_fdw" --repository "https://github.com/tembo-io/clerk_fdw" --license "PostgreSQL" --category connectors
   # build_and_push:
   #   name: Build and push images
   #   needs:
