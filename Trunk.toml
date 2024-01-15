@@ -1,0 +1,13 @@
+[extension]
+name = "clerk_fdw"
+repository = "https://github.com/tembo-io/clerk_fdw"
+license = "PostgreSQL"
+description = "Postgres Foreign Data Wrapper for Clerk.com Backend API"
+homepage = "https://github.com/tembo-io/clerk_fdw"
+documentation = "https://github.com/tembo-io/clerk_fdw"
+categories = ["connectors"]
+version = "0.2.5"
+
+[build]
+postgres_version = "15"
+platform = "linux/amd64"
