@@ -6,7 +6,7 @@ description = "Postgres Foreign Data Wrapper for Clerk.com Backend API"
 homepage = "https://github.com/tembo-io/clerk_fdw"
 documentation = "https://github.com/tembo-io/clerk_fdw"
 categories = ["connectors"]
-version = "0.2.5"
+version = "0.2.6"
 
 [build]
 postgres_version = "15"

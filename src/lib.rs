@@ -148,7 +148,7 @@ fn resp_to_rows(obj: &str, resp: &JsonValue, tgt_cols: &[Column]) -> Vec<Row> {
 }
 
 #[wrappers_fdw(
-    version = "0.2.5",
+    version = "0.2.6",
     author = "Jay Kothari",
     website = "https://tembo.io"
 )]
@@ -259,60 +259,77 @@ impl ForeignDataWrapper for ClerkFdw {
 
             if obj == "organization_memberships" {
                 // Get all organizations first
-                let org_url = self.build_url("organizations", options, 0);
 
                 self.rt.block_on(async {
-                    let org_resp = client
-                        .get(&org_url)
-                        .header("Authorization", format!("Bearer {}", api_key))
-                        .send()
-                        .await;
+                    let mut offset = 0;
+                    loop {
+                        let org_url = self.build_url("organizations", options, offset);
+                        let org_resp = client
+                            .get(&org_url)
+                            .header("Authorization", format!("Bearer {}", api_key))
+                            .send()
+                            .await;
 
-                    if let Ok(org_res) = org_resp {
-                        if org_res.status().is_success() {
-                            let org_body = org_res.text().await.unwrap();
-                            let org_json: JsonValue = serde_json::from_str(&org_body).unwrap();
+                        if let Ok(org_res) = org_resp {
+                            if org_res.status().is_success() {
+                                let org_body = org_res.text().await.unwrap();
+                                let org_json: JsonValue = serde_json::from_str(&org_body).unwrap();
 
-                            if let Some(org_data) =
-                                org_json.get("data").and_then(|data| data.as_array())
-                            {
-                                for org in org_data {
-                                    if let Some(org_id) = org.get("id").and_then(|id| id.as_str()) {
-                                        // Build the URL for memberships using org_id
-                                        let membership_url = format!(
-                                            "{}/organizations/{}/memberships?limit={}",
-                                            Self::DEFAULT_BASE_URL,
-                                            org_id,
-                                            Self::PAGE_SIZE
-                                        );
+                                if let Some(org_data) =
+                                    org_json.get("data").and_then(|data| data.as_array())
+                                {
+                                    for org in org_data {
+                                        if let Some(org_id) =
+                                            org.get("id").and_then(|id| id.as_str())
+                                        {
+                                            // Build the URL for memberships using org_id
+                                            let membership_url = format!(
+                                                "{}/organizations/{}/memberships?limit={}",
+                                                Self::DEFAULT_BASE_URL,
+                                                org_id,
+                                                Self::PAGE_SIZE
+                                            );
 
-                                        let membership_resp = client
-                                            .get(&membership_url)
-                                            .header("Authorization", format!("Bearer {}", api_key))
-                                            .send()
-                                            .await;
+                                            let membership_resp = client
+                                                .get(&membership_url)
+                                                .header(
+                                                    "Authorization",
+                                                    format!("Bearer {}", api_key),
+                                                )
+                                                .send()
+                                                .await;
 
-                                        match membership_resp {
-                                            Ok(mem_res) => {
-                                                if mem_res.status().is_success() {
-                                                    let mem_body = mem_res.text().await.unwrap();
-                                                    let mem_json: JsonValue =
-                                                        serde_json::from_str(&mem_body).unwrap();
-                                                    // info!("mem_json: {:#?}", mem_json);
+                                            match membership_resp {
+                                                Ok(mem_res) => {
+                                                    if mem_res.status().is_success() {
+                                                        let mem_body =
+                                                            mem_res.text().await.unwrap();
+                                                        let mem_json: JsonValue =
+                                                            serde_json::from_str(&mem_body)
+                                                                .unwrap();
+                                                        // info!("mem_json: {:#?}", mem_json);
 
-                                                    let mut rows = resp_to_rows(
-                                                        &obj,
-                                                        &mem_json,
-                                                        &self.tgt_cols[..],
-                                                    );
-                                                    result.append(&mut rows);
+                                                        let mut rows = resp_to_rows(
+                                                            &obj,
+                                                            &mem_json,
+                                                            &self.tgt_cols[..],
+                                                        );
+                                                        result.append(&mut rows);
+                                                    }
                                                 }
-                                            }
-                                            Err(_) => continue,
-                                        };
+                                                Err(_) => continue,
+                                            };
 
-                                        // Introduce a delay of 0.05 seconds
-                                        std::thread::sleep(std::time::Duration::from_millis(50));
+                                            // Introduce a delay of 0.05 seconds
+                                            std::thread::sleep(std::time::Duration::from_millis(
+                                                50,
+                                            ));
+                                        }
+                                    }
+                                    if org_data.len() < Self::PAGE_SIZE {
+                                        break;
+                                    } else {
+                                        offset += Self::PAGE_SIZE;
                                     }
                                 }
                             }

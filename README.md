@@ -4,7 +4,7 @@ This is a simple open-source data wrapper that bridges the gap between your Post
 
 ### Pre-requisistes
 
-- have the v0.2.5 of `clerk_fdw` extension enabled in your instance
+- have the v0.2.6 of `clerk_fdw` extension enabled in your instance
 
 Create the foreign data wrapper:
 
