@@ -1,0 +1,45 @@
+{
+   "name": "orb_fdw",
+   "abstract": "A foreign data wrapper for Clerk",
+   "description": "A simple open-source data wrapper that bridges the gap between your Postgres database and [Clerk](https://clerk.com/) a leading user management platform.",
+   "version": "@CARGO_VERSION@",
+   "maintainer": [
+      "Tembo <admin+pgxn@tembo.io>"
+   ],
+   "license": "postgresql",
+   "provides": {
+      "orb_fdw": {
+         "abstract": "A foreign data wrapper for Clerk",
+         "file": "src/lib.rs",
+         "docfile": "README.md",
+         "version": "@CARGO_VERSION@"
+      }
+   },
+   "prereqs": {
+      "runtime": {
+         "requires": {
+            "PostgreSQL": "15.0.0"
+         }
+      }
+   },
+   "resources": {
+      "bugtracker": {
+         "web": "https://github.com/tembo-io/clerk_fdw/issues/"
+      },
+      "repository": {
+         "url": "git://github.com/tembo-io/clerk_fdw.git",
+         "web": "https://github.com/tembo-io/clerk_fdw/",
+         "type": "git"
+      }
+   },
+   "generated_by": "Jay Kothari",
+   "meta-spec": {
+      "version": "1.0.0",
+      "url": "https://pgxn.org/meta/spec.txt"
+   },
+   "tags": [
+      "fdw",
+      "foreign data wrapper",
+      "clerk"
+   ]
+}
