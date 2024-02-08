@@ -204,7 +204,7 @@ impl ClerkFdw {
             }
             _ => {
                 warning!("unsupported object: {:#?}", obj);
-                return "".to_string();
+                "".to_string()
             }
         }
     }
@@ -224,8 +224,7 @@ impl ForeignDataWrapper for ClerkFdw {
             access_token.to_owned()
         } else {
             warning!("Cannot find api_key in options");
-            let access_token = env::var("CLERK_API_KEY").unwrap();
-            access_token
+            env::var("CLERK_API_KEY").unwrap()
         };
 
         ret.token = Some(token);
