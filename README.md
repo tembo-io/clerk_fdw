@@ -4,7 +4,7 @@ This is a simple open-source data wrapper that bridges the gap between your Post
 
 [![Static Badge](https://img.shields.io/badge/%40tembo-community?logo=slack&label=slack)](https://join.slack.com/t/tembocommunity/shared_invite/zt-20dtnhcmo-pLNV7_Aobi50TdTLpfQ~EQ)
 [![PGXN version](https://badge.fury.io/pg/orb_fdw.svg)](https://pgxn.org/dist/clerk_fdw/)
-### Pre-requisistes
+### Prerequisites
 
 - have the v0.2.6 of `clerk_fdw` extension enabled in your instance
 
@@ -86,7 +86,7 @@ options (
 );
 ```
 
-NOTE: There is a 0.5 second sleep timer between each request so that we do not overload clerk servers. The reponse might take a while and it is reccomended that you store the information in a local table for quick access.
+NOTE: There is a 0.5-second sleep timer between each request so that we do not overload clerk servers. The response might take a while, and it is recommended that you store the information in a local table for quick access.
 
 Query from the Foreign Table:
 `select * from clerk_users`
