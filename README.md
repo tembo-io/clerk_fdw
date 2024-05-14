@@ -42,7 +42,8 @@ create foreign table clerk_users (
   updated_at bigint,
   last_sign_in_at bigint,
   phone_numbers bigint,
-  username text
+  username text,
+  attrs jsonb
   )
   server my_clerk_server
   options (
@@ -62,7 +63,8 @@ create foreign table clerk_organizations (
   slug text,
   created_at bigint,
   updated_at bigint,
-  created_by text
+  created_by text,
+  attrs jsonb
 )
 server my_clerk_server
 options (
