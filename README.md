@@ -6,7 +6,7 @@ This is a simple open-source data wrapper that bridges the gap between your Post
 [![PGXN version](https://badge.fury.io/pg/orb_fdw.svg)](https://pgxn.org/dist/clerk_fdw/)
 ### Prerequisites
 
-- have the v0.2.6 of `clerk_fdw` extension enabled in your instance
+- have the v0.2.7 of `clerk_fdw` extension enabled in your instance
 
 Create the foreign data wrapper:
 
