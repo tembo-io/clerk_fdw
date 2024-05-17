@@ -148,7 +148,7 @@ fn resp_to_rows(obj: &str, resp: &JsonValue, tgt_cols: &[Column]) -> Vec<Row> {
 }
 
 #[wrappers_fdw(
-    version = "0.2.7",
+    version = "0.2.8",
     author = "Jay Kothari",
     website = "https://tembo.io"
 )]
@@ -319,9 +319,9 @@ impl ForeignDataWrapper for ClerkFdw {
                                                 Err(_) => continue,
                                             };
 
-                                            // Introduce a delay of 0.05 seconds
+                                            // Introduce a delay of 0.005 seconds
                                             std::thread::sleep(std::time::Duration::from_millis(
-                                                50,
+                                                5,
                                             ));
                                         }
                                     }
