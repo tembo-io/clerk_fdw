@@ -3,7 +3,7 @@
 This is a simple open-source data wrapper that bridges the gap between your Postgres database and [Clerk](https://clerk.com/) a leading user management solution. For more info, check out the [blog post](https://tembo.io/blog/clerk-fdw/)!
 
 [![Static Badge](https://img.shields.io/badge/%40tembo-community?logo=slack&label=slack)](https://join.slack.com/t/tembocommunity/shared_invite/zt-20dtnhcmo-pLNV7_Aobi50TdTLpfQ~EQ)
-[![PGXN version](https://badge.fury.io/pg/orb_fdw.svg)](https://pgxn.org/dist/clerk_fdw/)
+[![PGXN version](https://badge.fury.io/pg/clerk_fdw.svg)](https://pgxn.org/dist/clerk_fdw/)
 ### Prerequisites
 
 - have the v0.2.7 of `clerk_fdw` extension enabled in your instance
