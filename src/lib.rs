@@ -320,9 +320,7 @@ impl ForeignDataWrapper for ClerkFdw {
                                             };
 
                                             // Introduce a delay of 0.005 seconds
-                                            std::thread::sleep(std::time::Duration::from_millis(
-                                                5,
-                                            ));
+                                            std::thread::sleep(std::time::Duration::from_millis(5));
                                         }
                                     }
                                     if org_data.len() < Self::PAGE_SIZE {
