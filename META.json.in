@@ -8,7 +8,7 @@
    ],
    "license": "postgresql",
    "provides": {
-      "orb_fdw": {
+      "clerk_fdw": {
          "abstract": "A foreign data wrapper for Clerk",
          "file": "src/lib.rs",
          "docfile": "README.md",
