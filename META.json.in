@@ -1,5 +1,5 @@
 {
-   "name": "orb_fdw",
+   "name": "clerk_fdw",
    "abstract": "A foreign data wrapper for Clerk",
    "description": "A simple open-source data wrapper that bridges the gap between your Postgres database and [Clerk](https://clerk.com/) a leading user management platform.",
    "version": "@CARGO_VERSION@",
