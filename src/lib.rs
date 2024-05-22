@@ -211,40 +211,49 @@ impl ForeignDataWrapper for ClerkFdw {
         if obj == "organization_memberships" {
             // Get all organizations first
             self.rt.block_on(async {
-                let org_resp =
-                    Organization::list_organizations(&clerk_client, None, None, None, None).await;
-
-                if let Ok(org_res) = org_resp {
-                    for org in org_res.data {
-                        let membership_resp =
-                            OrganizationMembership::list_organization_memberships(
-                                &clerk_client,
-                                &org.id,
-                                Some(PAGE_SIZE as f32),
-                                None,
-                            )
+                let mut offset: f32 = 0.0;
+                loop {
+                    let org_resp =
+                        Organization::list_organizations(&clerk_client, None, None, None, None)
                             .await;
 
-                        match membership_resp {
-                            Ok(mem_res) => {
-                                let serde_v = serde_json::to_value(mem_res).unwrap();
-                                let mut rows = resp_to_rows(&obj, &serde_v, &self.tgt_cols[..]);
-                                result.append(&mut rows);
-                            }
-                            Err(e) => {
-                                warning!(
-                                    "Failed to get memberships for organization: {}, error: {}",
+                    if let Ok(org_res) = org_resp {
+                        for org in org_res.data.iter() {
+                            let membership_resp =
+                                OrganizationMembership::list_organization_memberships(
+                                    &clerk_client,
                                     &org.id,
-                                    e
-                                );
-                                continue;
+                                    Some(PAGE_SIZE as f32),
+                                    Some(offset),
+                                )
+                                .await;
+
+                            match membership_resp {
+                                Ok(mem_res) => {
+                                    let serde_v = serde_json::to_value(mem_res).unwrap();
+                                    let mut rows = resp_to_rows(&obj, &serde_v, &self.tgt_cols[..]);
+                                    result.append(&mut rows);
+                                }
+                                Err(e) => {
+                                    warning!(
+                                        "Failed to get memberships for organization: {}, error: {}",
+                                        &org.id,
+                                        e
+                                    );
+                                    continue;
+                                }
                             }
+                            // Introduce a delay of 0.05 seconds
+                            std::thread::sleep(std::time::Duration::from_millis(50));
                         }
-                        // Introduce a delay of 0.05 seconds
-                        std::thread::sleep(std::time::Duration::from_millis(50));
+                        if org_res.data.len() < PAGE_SIZE {
+                            break;
+                        } else {
+                            offset += PAGE_SIZE as f32;
+                        }
+                    } else {
+                        warning!("Failed to get organizations. error: {:#?}", org_resp);
                     }
-                } else {
-                    warning!("Failed to get organizations. error: {:#?}", org_resp);
                 }
             });
         } else {
@@ -300,9 +309,8 @@ impl ForeignDataWrapper for ClerkFdw {
                     }
                 }
             });
-
-            self.scan_result = Some(result);
         }
+        self.scan_result = Some(result);
     }
 
     fn iter_scan(&mut self, row: &mut Row) -> Option<()> {
