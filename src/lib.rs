@@ -243,6 +243,8 @@ impl ForeignDataWrapper for ClerkFdw {
                         // Introduce a delay of 0.05 seconds
                         std::thread::sleep(std::time::Duration::from_millis(50));
                     }
+                } else {
+                    warning!("Failed to get organizations. error: {:#?}", org_resp);
                 }
             });
         } else {
