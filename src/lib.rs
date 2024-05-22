@@ -252,40 +252,52 @@ impl ForeignDataWrapper for ClerkFdw {
             self.rt.block_on(async {
                 let mut offset = 0;
                 loop {
-                    let resp = User::get_user_list(
-                        &clerk_client,
-                        None,
-                        None,
-                        None,
-                        None,
-                        None,
-                        None,
-                        None,
-                        None,
-                        None,
-                        Some(offset as f32),
-                        None,
-                    )
-                    .await;
-
-                    match resp {
-                        Ok(res) => {
-                            let user_js =
-                                serde_json::to_value(res).expect("failed to convert to json");
-                            let mut rows = resp_to_rows(&obj, &user_js, &self.tgt_cols[..]);
-                            if rows.len() < PAGE_SIZE {
-                                result.append(&mut rows);
-                                break;
-                            } else {
-                                result.append(&mut rows);
-                                offset += PAGE_SIZE;
-                            }
+                    let obj_js = match obj.as_str() {
+                        "users" => {
+                            let users = User::get_user_list(
+                                &clerk_client,
+                                None,
+                                None,
+                                None,
+                                None,
+                                None,
+                                None,
+                                None,
+                                None,
+                                None,
+                                Some(offset as f32),
+                                None,
+                            )
+                            .await
+                            .unwrap();
+                            serde_json::to_value(users).expect("failed deserializing users")
                         }
-                        Err(error) => {
-                            warning!("Error: {:#?}", error);
+                        "organizations" => {
+                            let orgs = Organization::list_organizations(
+                                &clerk_client,
+                                None,
+                                Some(offset as f32),
+                                None,
+                                None,
+                            )
+                            .await
+                            .unwrap();
+                            serde_json::to_value(orgs).expect("failed deserializing orgs")
+                        }
+                        _ => {
+                            warning!("unsupported object: {}", obj);
                             return;
                         }
                     };
+
+                    let mut rows = resp_to_rows(&obj, &obj_js, &self.tgt_cols[..]);
+                    if rows.len() < PAGE_SIZE {
+                        result.append(&mut rows);
+                        break;
+                    } else {
+                        result.append(&mut rows);
+                        offset += PAGE_SIZE;
+                    }
                 }
             });
 
