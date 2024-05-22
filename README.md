@@ -2,9 +2,12 @@
 
 This is a simple open-source data wrapper that bridges the gap between your Postgres database and [Clerk](https://clerk.com/) a leading user management solution. For more info, check out the [blog post](https://tembo.io/blog/clerk-fdw/)!
 
-## Pre-requisistes
+[![Static Badge](https://img.shields.io/badge/%40tembo-community?logo=slack&label=slack)](https://join.slack.com/t/tembocommunity/shared_invite/zt-20dtnhcmo-pLNV7_Aobi50TdTLpfQ~EQ)
+[![PGXN version](https://badge.fury.io/pg/clerk_fdw.svg)](https://pgxn.org/dist/clerk_fdw/)
 
-- have the v0.2.2 of `clerk_fdw` extension enabled in your instance
+## Prerequisites
+
+- have the v0.2.7 of `clerk_fdw` extension enabled in your instance
 
 Create the foreign data wrapper:
 
@@ -40,7 +43,8 @@ create foreign table clerk_users (
   updated_at bigint,
   last_sign_in_at bigint,
   phone_numbers bigint,
-  username text
+  username text,
+  attrs jsonb
   )
   server my_clerk_server
   options (
@@ -60,7 +64,8 @@ create foreign table clerk_organizations (
   slug text,
   created_at bigint,
   updated_at bigint,
-  created_by text
+  created_by text,
+  attrs jsonb
 )
 server my_clerk_server
 options (
@@ -84,7 +89,7 @@ options (
 );
 ```
 
-NOTE: There is a 0.5 second sleep timer between each request so that we do not overload clerk servers. The reponse might take a while and it is reccomended that you store the information in a local table for quick access.
+NOTE: There is a 0.5-second sleep timer between each request so that we do not overload clerk servers. The response might take a while, and it is recommended that you store the information in a local table for quick access.
 
 Query from the Foreign Table:
 `select * from clerk_users`
