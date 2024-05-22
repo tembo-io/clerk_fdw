@@ -14,7 +14,7 @@ use clerk_rs::{
     apis::organizations_api::Organization, apis::users_api::User, clerk::Clerk, ClerkConfiguration,
 };
 
-// TODO: will have to incorportate offset at some point
+// TODO: will have to incorporate offset at some point
 const PAGE_SIZE: usize = 500;
 
 fn body_to_rows(
@@ -162,20 +162,13 @@ fn resp_to_rows(obj: &str, resp: &JsonValue, tgt_cols: &[Column]) -> Vec<Row> {
 
 pub(crate) struct ClerkFdw {
     rt: Runtime,
-    token: Option<String>,
     scan_result: Option<Vec<Row>>,
     tgt_cols: Vec<Column>,
+    clerk_client: Clerk,
 }
 
 impl ForeignDataWrapper for ClerkFdw {
     fn new(options: &HashMap<String, String>) -> Self {
-        let mut ret = Self {
-            rt: create_async_runtime(),
-            token: None,
-            tgt_cols: Vec::new(),
-            scan_result: None,
-        };
-
         let token = if let Some(access_token) = options.get("api_key") {
             access_token.to_owned()
         } else {
@@ -183,8 +176,19 @@ impl ForeignDataWrapper for ClerkFdw {
             env::var("CLERK_API_KEY").unwrap()
         };
 
-        ret.token = Some(token);
-        ret
+        let clerk_client = Clerk::new(ClerkConfiguration::new(
+            None,
+            None,
+            Some(token.to_string()),
+            None,
+        ));
+
+        Self {
+            rt: create_async_runtime(),
+            tgt_cols: Vec::new(),
+            scan_result: None,
+            clerk_client,
+        }
     }
 
     fn begin_scan(
@@ -202,26 +206,27 @@ impl ForeignDataWrapper for ClerkFdw {
 
         self.scan_result = None;
         self.tgt_cols = columns.to_vec();
-        let api_key = self.token.as_ref().unwrap();
-        let config = ClerkConfiguration::new(None, None, Some(api_key.to_string()), None);
-        let clerk_client = Clerk::new(config);
 
         let mut result = Vec::new();
-
-        if obj == "organization_memberships" {
-            // Get all organizations first
-            self.rt.block_on(async {
+        self.rt.block_on(async {
+            if obj == "organization_memberships" {
+                // Get all organizations first
                 let mut offset: f32 = 0.0;
                 loop {
-                    let org_resp =
-                        Organization::list_organizations(&clerk_client, None, None, None, None)
-                            .await;
+                    let org_resp = Organization::list_organizations(
+                        &self.clerk_client,
+                        None,
+                        None,
+                        None,
+                        None,
+                    )
+                    .await;
 
                     if let Ok(org_res) = org_resp {
                         for org in org_res.data.iter() {
                             let membership_resp =
                                 OrganizationMembership::list_organization_memberships(
-                                    &clerk_client,
+                                    &self.clerk_client,
                                     &org.id,
                                     Some(PAGE_SIZE as f32),
                                     Some(offset),
@@ -255,49 +260,61 @@ impl ForeignDataWrapper for ClerkFdw {
                         warning!("Failed to get organizations. error: {:#?}", org_resp);
                     }
                 }
-            });
-        } else {
-            // this is where i need to make changes
-            self.rt.block_on(async {
+            } else {
+                // this is where i need to make changes
                 let mut offset = 0;
                 loop {
-                    let obj_js = match obj.as_str() {
-                        "users" => {
-                            let users = User::get_user_list(
-                                &clerk_client,
-                                None,
-                                None,
-                                None,
-                                None,
-                                None,
-                                None,
-                                None,
-                                None,
-                                None,
-                                Some(offset as f32),
-                                None,
-                            )
-                            .await
-                            .unwrap();
-                            serde_json::to_value(users).expect("failed deserializing users")
-                        }
-                        "organizations" => {
-                            let orgs = Organization::list_organizations(
-                                &clerk_client,
-                                None,
-                                Some(offset as f32),
-                                None,
-                                None,
-                            )
-                            .await
-                            .unwrap();
-                            serde_json::to_value(orgs).expect("failed deserializing orgs")
-                        }
-                        _ => {
-                            warning!("unsupported object: {}", obj);
-                            return;
-                        }
-                    };
+                    let obj_js =
+                        match obj.as_str() {
+                            "users" => {
+                                match User::get_user_list(
+                                    &self.clerk_client,
+                                    None,
+                                    None,
+                                    None,
+                                    None,
+                                    None,
+                                    None,
+                                    None,
+                                    None,
+                                    None,
+                                    Some(offset as f32),
+                                    None,
+                                )
+                                .await
+                                {
+                                    Ok(users) => serde_json::to_value(users)
+                                        .expect("failed deserializing users"),
+                                    Err(e) => {
+                                        warning!("Failed to get users: {}", e);
+                                        break;
+                                    }
+                                }
+                            }
+                            "organizations" => {
+                                match Organization::list_organizations(
+                                    &self.clerk_client,
+                                    None,
+                                    Some(offset as f32),
+                                    None,
+                                    None,
+                                )
+                                .await
+                                {
+                                    Ok(orgs) => serde_json::to_value(orgs)
+                                        .expect("failed deserializing orgs"),
+                                    Err(e) => {
+                                        warning!("Failed to get organizations: {}", e);
+                                        break;
+                                    }
+                                }
+                                //
+                            }
+                            _ => {
+                                warning!("unsupported object: {}", obj);
+                                return;
+                            }
+                        };
 
                     let mut rows = resp_to_rows(&obj, &obj_js, &self.tgt_cols[..]);
                     if rows.len() < PAGE_SIZE {
@@ -308,8 +325,8 @@ impl ForeignDataWrapper for ClerkFdw {
                         offset += PAGE_SIZE;
                     }
                 }
-            });
-        }
+            }
+        });
         self.scan_result = Some(result);
     }
 
