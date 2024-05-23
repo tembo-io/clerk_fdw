@@ -264,7 +264,6 @@ impl ForeignDataWrapper for ClerkFdw {
                 // this is where i need to make changes
                 let mut offset = 0;
                 loop {
-                    println!("offset: {}", offset);
                     let obj_js =
                         match obj.as_str() {
                             "users" => {
