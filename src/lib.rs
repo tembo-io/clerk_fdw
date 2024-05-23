@@ -215,8 +215,8 @@ impl ForeignDataWrapper for ClerkFdw {
                 loop {
                     let org_resp = Organization::list_organizations(
                         &self.clerk_client,
-                        None,
-                        None,
+                        Some(PAGE_SIZE as f32),
+                        Some(offset),
                         None,
                         None,
                     )
@@ -264,6 +264,7 @@ impl ForeignDataWrapper for ClerkFdw {
                 // this is where i need to make changes
                 let mut offset = 0;
                 loop {
+                    println!("offset: {}", offset);
                     let obj_js =
                         match obj.as_str() {
                             "users" => {
@@ -277,7 +278,7 @@ impl ForeignDataWrapper for ClerkFdw {
                                     None,
                                     None,
                                     None,
-                                    None,
+                                    Some(PAGE_SIZE as f32),
                                     Some(offset as f32),
                                     None,
                                 )
@@ -294,7 +295,7 @@ impl ForeignDataWrapper for ClerkFdw {
                             "organizations" => {
                                 match Organization::list_organizations(
                                     &self.clerk_client,
-                                    None,
+                                    Some(PAGE_SIZE as f32),
                                     Some(offset as f32),
                                     None,
                                     None,
