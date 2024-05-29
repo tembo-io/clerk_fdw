@@ -241,7 +241,7 @@ impl ForeignDataWrapper<ClerkFdwError> for ClerkFdw {
                                     &self.clerk_client,
                                     &org.id,
                                     Some(PAGE_SIZE as f32),
-                                    Some(offset),
+                                    None,
                                 )
                                 .await;
 
