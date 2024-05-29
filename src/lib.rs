@@ -231,8 +231,10 @@ impl ForeignDataWrapper<ClerkFdwError> for ClerkFdw {
                         None,
                     )
                     .await;
-
                     if let Ok(org_res) = org_resp {
+                        let total_orgs = org_res.data.len();
+                        info!("clerk_fdw: received total organizations: {}", total_orgs);
+                        let mut i_org = 0;
                         for org in org_res.data.iter() {
                             let membership_resp =
                                 OrganizationMembership::list_organization_memberships(
@@ -245,6 +247,10 @@ impl ForeignDataWrapper<ClerkFdwError> for ClerkFdw {
 
                             match membership_resp {
                                 Ok(mem_res) => {
+                                    i_org += 1;
+                                    if i_org % 50 == 0 {
+                                        info!("clerk_fdw: received memberships for organization: {}/{}", i_org, total_orgs);
+                                    }
                                     let serde_v = serde_json::to_value(mem_res).unwrap();
                                     let mut rows = resp_to_rows(obj, &serde_v, &self.tgt_cols[..]);
                                     result.append(&mut rows);
@@ -262,9 +268,11 @@ impl ForeignDataWrapper<ClerkFdwError> for ClerkFdw {
                             std::thread::sleep(std::time::Duration::from_millis(50));
                         }
                         if org_res.data.len() < PAGE_SIZE {
+                            info!("clerk_fdw: finished fetching all memberships, total={}", result.len());
                             break;
                         } else {
                             offset += PAGE_SIZE as f32;
+                            info!("clerk_fdw: fetching more organizations, offset={}", offset);
                         }
                     } else {
                         warning!("Failed to get organizations. error: {:#?}", org_resp);
