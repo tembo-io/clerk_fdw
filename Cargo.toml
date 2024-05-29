@@ -8,7 +8,7 @@ publish = false
 crate-type = ["cdylib"]
 
 [features]
-default = ["pg15"]
+default = ["pg16"]
 pg14 = ["pgrx/pg14", "pgrx-tests/pg14", "supabase-wrappers/pg14"]
 pg15 = ["pgrx/pg15", "pgrx-tests/pg15", "supabase-wrappers/pg15"]
 pg16 = ["pgrx/pg16", "pgrx-tests/pg16", "supabase-wrappers/pg16"]
