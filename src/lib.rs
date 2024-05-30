@@ -252,7 +252,7 @@ impl ForeignDataWrapper<ClerkFdwError> for ClerkFdw {
                                         clerk_rs::apis::Error::ResponseError(ref response_error) => {
                                             match response_error.entity {
                                                 Some(ListOrganizationMembershipsError::UnknownValue(_)) => {
-                                                    info!("clerk_fdw: received unknown error, backing off");
+                                                    info!("clerk_fdw: received {:#?}, backing off", e);
                                                     backoff::Error::transient(e)
                                                 }
                                                 _ => backoff::Error::Permanent(e),
