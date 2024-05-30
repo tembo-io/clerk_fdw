@@ -257,7 +257,7 @@ impl ForeignDataWrapper<ClerkFdwError> for ClerkFdw {
                                                     reqwest::StatusCode::GATEWAY_TIMEOUT |
                                                     reqwest::StatusCode::INTERNAL_SERVER_ERROR => {
                                                         info!("clerk_fdw: received {} error, backing off", status_code);
-                                                        backoff::Error::transient(e) 
+                                                        backoff::Error::transient(e)
                                                     },
                                                     _ => backoff::Error::Permanent(e),
                                                 }
@@ -269,8 +269,7 @@ impl ForeignDataWrapper<ClerkFdwError> for ClerkFdw {
                                     })
                                 }
                             })
-                            .await;                            
-                
+                            .await;
                             match membership_resp {
                                 Ok(mem_res) => {
                                     i_org += 1;
