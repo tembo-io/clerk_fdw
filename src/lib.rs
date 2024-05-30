@@ -250,11 +250,16 @@ impl ForeignDataWrapper<ClerkFdwError> for ClerkFdw {
                                     .map_err(|e| match e {
                                         clerk_rs::apis::Error::Reqwest(ref reqwest_error) => {
                                             if let Some(status_code) = reqwest_error.status() {
-                                                if status_code == reqwest::StatusCode::TOO_MANY_REQUESTS {
-                                                    info!("clerk_fdw: received too many requests error, backing off");
-                                                    backoff::Error::transient(e)  // Mark 429 errors as transient
-                                                } else {
-                                                    backoff::Error::Permanent(e)
+                                                match status_code {
+                                                    reqwest::StatusCode::TOO_MANY_REQUESTS |
+                                                    reqwest::StatusCode::BAD_GATEWAY |
+                                                    reqwest::StatusCode::SERVICE_UNAVAILABLE |
+                                                    reqwest::StatusCode::GATEWAY_TIMEOUT |
+                                                    reqwest::StatusCode::INTERNAL_SERVER_ERROR => {
+                                                        info!("clerk_fdw: received {} error, backing off", status_code);
+                                                        backoff::Error::transient(e) 
+                                                    },
+                                                    _ => backoff::Error::Permanent(e),
                                                 }
                                             } else {
                                                 backoff::Error::Permanent(e)
