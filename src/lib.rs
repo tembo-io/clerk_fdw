@@ -1,14 +1,21 @@
 use pgrx::warning;
 use pgrx::{pg_sys, prelude::*, JsonB};
-use reqwest::{self, Client};
 use std::collections::HashMap;
 use std::env;
 use tokio::runtime::Runtime;
-// use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
+
 use serde_json::Value as JsonValue;
 use std::str::FromStr;
 use supabase_wrappers::prelude::*;
 pgrx::pg_module_magic!();
+
+use clerk_rs::{
+    apis::organization_memberships_api::OrganizationMembership,
+    apis::organizations_api::Organization, apis::users_api::User, clerk::Clerk, ClerkConfiguration,
+};
+
+// TODO: will have to incorporate offset at some point
+const PAGE_SIZE: usize = 500;
 
 fn body_to_rows(
     resp: &JsonValue,
@@ -49,7 +56,7 @@ fn body_to_rows(
 
                 if *src_name == "email_addresses" {
                     current_value = current_value
-                        .and_then(|v| v.as_array().and_then(|arr| arr.get(0)))
+                        .and_then(|v| v.as_array().and_then(|arr| arr.first()))
                         .and_then(|first_obj| {
                             first_obj
                                 .as_object()
@@ -155,71 +162,13 @@ fn resp_to_rows(obj: &str, resp: &JsonValue, tgt_cols: &[Column]) -> Vec<Row> {
 
 pub(crate) struct ClerkFdw {
     rt: Runtime,
-    token: Option<String>,
-    client: Option<Client>,
     scan_result: Option<Vec<Row>>,
     tgt_cols: Vec<Column>,
-}
-
-impl ClerkFdw {
-    const DEFAULT_BASE_URL: &'static str = "https://api.clerk.com/v1";
-
-    // TODO: will have to incorportate offset at some point
-    const PAGE_SIZE: usize = 500;
-
-    fn build_url(&self, obj: &str, options: &HashMap<String, String>, offset: usize) -> String {
-        match obj {
-            "users" => {
-                let base_url = Self::DEFAULT_BASE_URL.to_owned();
-                let ret = format!(
-                    "{}/users?limit={}&offset={}",
-                    base_url,
-                    Self::PAGE_SIZE,
-                    offset
-                );
-                ret
-            }
-            "organizations" => {
-                let base_url = Self::DEFAULT_BASE_URL.to_owned();
-                let ret = format!(
-                    "{}/organizations?limit={}&offset={}",
-                    base_url,
-                    Self::PAGE_SIZE,
-                    offset
-                );
-                ret
-            }
-            "organization_memberships" => {
-                let base_url = Self::DEFAULT_BASE_URL.to_owned();
-                let org_id = options
-                    .get("organization_id")
-                    .expect("Organization ID required");
-                let ret = format!(
-                    "{}/organizations/{}/memberships?limit={}",
-                    base_url,
-                    org_id,
-                    Self::PAGE_SIZE
-                );
-                ret
-            }
-            _ => {
-                warning!("unsupported object: {:#?}", obj);
-                "".to_string()
-            }
-        }
-    }
+    clerk_client: Clerk,
 }
 
 impl ForeignDataWrapper for ClerkFdw {
     fn new(options: &HashMap<String, String>) -> Self {
-        let mut ret = Self {
-            rt: create_async_runtime(),
-            token: None,
-            client: None,
-            tgt_cols: Vec::new(),
-            scan_result: None,
-        };
-
         let token = if let Some(access_token) = options.get("api_key") {
             access_token.to_owned()
         } else {
@@ -227,13 +176,19 @@ impl ForeignDataWrapper for ClerkFdw {
             env::var("CLERK_API_KEY").unwrap()
         };
 
-        ret.token = Some(token);
+        let clerk_client = Clerk::new(ClerkConfiguration::new(
+            None,
+            None,
+            Some(token.to_string()),
+            None,
+        ));
 
-        // create client
-        let client = reqwest::Client::new();
-        ret.client = Some(client);
-
-        ret
+        Self {
+            rt: create_async_runtime(),
+            tgt_cols: Vec::new(),
+            scan_result: None,
+            clerk_client,
+        }
     }
 
     fn begin_scan(
@@ -251,129 +206,128 @@ impl ForeignDataWrapper for ClerkFdw {
 
         self.scan_result = None;
         self.tgt_cols = columns.to_vec();
-        let api_key = self.token.as_ref().unwrap();
 
-        if let Some(client) = &self.client {
-            let mut result = Vec::new();
-
+        let mut result = Vec::new();
+        self.rt.block_on(async {
             if obj == "organization_memberships" {
                 // Get all organizations first
+                let mut offset: f32 = 0.0;
+                loop {
+                    let org_resp = Organization::list_organizations(
+                        &self.clerk_client,
+                        Some(PAGE_SIZE as f32),
+                        Some(offset),
+                        None,
+                        None,
+                    )
+                    .await;
 
-                self.rt.block_on(async {
-                    let mut offset = 0;
-                    loop {
-                        let org_url = self.build_url("organizations", options, offset);
-                        let org_resp = client
-                            .get(&org_url)
-                            .header("Authorization", format!("Bearer {}", api_key))
-                            .send()
-                            .await;
+                    if let Ok(org_res) = org_resp {
+                        for org in org_res.data.iter() {
+                            let membership_resp =
+                                OrganizationMembership::list_organization_memberships(
+                                    &self.clerk_client,
+                                    &org.id,
+                                    Some(PAGE_SIZE as f32),
+                                    None,
+                                )
+                                .await;
 
-                        if let Ok(org_res) = org_resp {
-                            if org_res.status().is_success() {
-                                let org_body = org_res.text().await.unwrap();
-                                let org_json: JsonValue = serde_json::from_str(&org_body).unwrap();
-
-                                if let Some(org_data) =
-                                    org_json.get("data").and_then(|data| data.as_array())
-                                {
-                                    for org in org_data {
-                                        if let Some(org_id) =
-                                            org.get("id").and_then(|id| id.as_str())
-                                        {
-                                            // Build the URL for memberships using org_id
-                                            let membership_url = format!(
-                                                "{}/organizations/{}/memberships?limit={}",
-                                                Self::DEFAULT_BASE_URL,
-                                                org_id,
-                                                Self::PAGE_SIZE
-                                            );
-
-                                            let membership_resp = client
-                                                .get(&membership_url)
-                                                .header(
-                                                    "Authorization",
-                                                    format!("Bearer {}", api_key),
-                                                )
-                                                .send()
-                                                .await;
-
-                                            match membership_resp {
-                                                Ok(mem_res) => {
-                                                    if mem_res.status().is_success() {
-                                                        let mem_body =
-                                                            mem_res.text().await.unwrap();
-                                                        let mem_json: JsonValue =
-                                                            serde_json::from_str(&mem_body)
-                                                                .unwrap();
-                                                        // info!("mem_json: {:#?}", mem_json);
-
-                                                        let mut rows = resp_to_rows(
-                                                            &obj,
-                                                            &mem_json,
-                                                            &self.tgt_cols[..],
-                                                        );
-                                                        result.append(&mut rows);
-                                                    }
-                                                }
-                                                Err(_) => continue,
-                                            };
-
-                                            // Introduce a delay of 0.005 seconds
-                                            std::thread::sleep(std::time::Duration::from_millis(5));
-                                        }
-                                    }
-                                    if org_data.len() < Self::PAGE_SIZE {
-                                        break;
-                                    } else {
-                                        offset += Self::PAGE_SIZE;
-                                    }
+                            match membership_resp {
+                                Ok(mem_res) => {
+                                    let serde_v = serde_json::to_value(mem_res).unwrap();
+                                    let mut rows = resp_to_rows(&obj, &serde_v, &self.tgt_cols[..]);
+                                    result.append(&mut rows);
+                                }
+                                Err(e) => {
+                                    warning!(
+                                        "Failed to get memberships for organization: {}, error: {}",
+                                        &org.id,
+                                        e
+                                    );
+                                    continue;
                                 }
                             }
+                            // Introduce a delay of 0.05 seconds
+                            std::thread::sleep(std::time::Duration::from_millis(50));
                         }
+                        if org_res.data.len() < PAGE_SIZE {
+                            break;
+                        } else {
+                            offset += PAGE_SIZE as f32;
+                        }
+                    } else {
+                        warning!("Failed to get organizations. error: {:#?}", org_resp);
                     }
-                });
+                }
             } else {
                 // this is where i need to make changes
-                self.rt.block_on(async {
-                    let mut offset = 0;
-                    loop {
-                        let url = self.build_url(&obj, options, offset);
-                        let resp = client
-                            .get(&url)
-                            .header("Authorization", format!("Bearer {}", api_key))
-                            .send()
-                            .await;
-
-                        match resp {
-                            Ok(res) => {
-                                if res.status().is_success() {
-                                    let body = res.text().await.unwrap();
-                                    let json: JsonValue = serde_json::from_str(&body).unwrap();
-                                    let mut rows = resp_to_rows(&obj, &json, &self.tgt_cols[..]);
-                                    if rows.len() < Self::PAGE_SIZE {
-                                        result.append(&mut rows);
+                let mut offset = 0;
+                loop {
+                    let obj_js =
+                        match obj.as_str() {
+                            "users" => {
+                                match User::get_user_list(
+                                    &self.clerk_client,
+                                    None,
+                                    None,
+                                    None,
+                                    None,
+                                    None,
+                                    None,
+                                    None,
+                                    None,
+                                    Some(PAGE_SIZE as f32),
+                                    Some(offset as f32),
+                                    None,
+                                )
+                                .await
+                                {
+                                    Ok(users) => serde_json::to_value(users)
+                                        .expect("failed deserializing users"),
+                                    Err(e) => {
+                                        warning!("Failed to get users: {}", e);
                                         break;
-                                    } else {
-                                        result.append(&mut rows);
-                                        offset += Self::PAGE_SIZE;
                                     }
-                                } else {
-                                    warning!("Failed request with status: {}", res.status());
-                                    break;
                                 }
                             }
-                            Err(error) => {
-                                warning!("Error: {:#?}", error);
+                            "organizations" => {
+                                match Organization::list_organizations(
+                                    &self.clerk_client,
+                                    Some(PAGE_SIZE as f32),
+                                    Some(offset as f32),
+                                    None,
+                                    None,
+                                )
+                                .await
+                                {
+                                    Ok(orgs) => serde_json::to_value(orgs)
+                                        .expect("failed deserializing orgs"),
+                                    Err(e) => {
+                                        warning!("Failed to get organizations: {}", e);
+                                        break;
+                                    }
+                                }
+                                //
+                            }
+                            _ => {
+                                warning!("unsupported object: {}", obj);
                                 return;
                             }
                         };
-                    }
-                });
-            }
 
-            self.scan_result = Some(result);
-        }
+                    let mut rows = resp_to_rows(&obj, &obj_js, &self.tgt_cols[..]);
+                    if rows.len() < PAGE_SIZE {
+                        result.append(&mut rows);
+                        break;
+                    } else {
+                        result.append(&mut rows);
+                        offset += PAGE_SIZE;
+                    }
+                }
+            }
+        });
+        self.scan_result = Some(result);
     }
 
     fn iter_scan(&mut self, row: &mut Row) -> Option<()> {

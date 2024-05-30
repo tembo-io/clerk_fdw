@@ -1,16 +1,17 @@
-## Clerk_fdw
+# Clerk_fdw
 
 This is a simple open-source data wrapper that bridges the gap between your Postgres database and [Clerk](https://clerk.com/) a leading user management solution. For more info, check out the [blog post](https://tembo.io/blog/clerk-fdw/)!
 
 [![Static Badge](https://img.shields.io/badge/%40tembo-community?logo=slack&label=slack)](https://join.slack.com/t/tembocommunity/shared_invite/zt-20dtnhcmo-pLNV7_Aobi50TdTLpfQ~EQ)
 [![PGXN version](https://badge.fury.io/pg/clerk_fdw.svg)](https://pgxn.org/dist/clerk_fdw/)
-### Prerequisites
+
+## Prerequisites
 
 - have the v0.2.7 of `clerk_fdw` extension enabled in your instance
 
 Create the foreign data wrapper:
 
-```
+```sql
 create foreign data wrapper clerk_wrapper
   handler clerk_fdw_handler
   validator clerk_fdw_validator;
@@ -18,7 +19,7 @@ create foreign data wrapper clerk_wrapper
 
 Connect to clerk using your credentials:
 
-```
+```sql
 create server my_clerk_server
   foreign data wrapper clerk_wrapper
   options (
@@ -31,7 +32,7 @@ Create Foreign Table:
 
 This table will store information about the users.
 
-```
+```sql
 create foreign table clerk_users (
   user_id text,
   first_name text,
@@ -56,7 +57,7 @@ create foreign table clerk_users (
 
 This table will store information about the organizations.
 
-```
+```sql
 create foreign table clerk_organizations (
   organization_id text,
   name text,
@@ -76,7 +77,7 @@ options (
 
 This table connects the `clerk_users` and `clerk_orgs`. It lists out all users and their roles in each organization.
 
-```
+```sql
 create foreign table clerk_organization_memberships (
   user_id text,
   organization_id text,
