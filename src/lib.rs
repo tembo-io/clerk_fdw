@@ -13,6 +13,7 @@ use supabase_wrappers::prelude::*;
 pgrx::pg_module_magic!();
 
 use clerk_rs::{
+    apis::organization_memberships_api::ListOrganizationMembershipsError,
     apis::organization_memberships_api::OrganizationMembership,
     apis::organizations_api::Organization, apis::users_api::User, clerk::Clerk, ClerkConfiguration,
 };
@@ -248,21 +249,13 @@ impl ForeignDataWrapper<ClerkFdwError> for ClerkFdw {
                                     )
                                     .await
                                     .map_err(|e| match e {
-                                        clerk_rs::apis::Error::Reqwest(ref reqwest_error) => {
-                                            if let Some(status_code) = reqwest_error.status() {
-                                                match status_code {
-                                                    reqwest::StatusCode::TOO_MANY_REQUESTS |
-                                                    reqwest::StatusCode::BAD_GATEWAY |
-                                                    reqwest::StatusCode::SERVICE_UNAVAILABLE |
-                                                    reqwest::StatusCode::GATEWAY_TIMEOUT |
-                                                    reqwest::StatusCode::INTERNAL_SERVER_ERROR => {
-                                                        info!("clerk_fdw: received {} error, backing off", status_code);
-                                                        backoff::Error::transient(e)
-                                                    },
-                                                    _ => backoff::Error::Permanent(e),
+                                        clerk_rs::apis::Error::ResponseError(ref response_error) => {
+                                            match response_error.entity {
+                                                Some(ListOrganizationMembershipsError::UnknownValue(_)) => {
+                                                    info!("clerk_fdw: received unknown error, backing off");
+                                                    backoff::Error::transient(e)
                                                 }
-                                            } else {
-                                                backoff::Error::Permanent(e)
+                                                _ => backoff::Error::Permanent(e),
                                             }
                                         }
                                         _ => backoff::Error::Permanent(e),
