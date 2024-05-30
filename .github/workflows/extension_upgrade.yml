@@ -50,6 +50,8 @@ jobs:
           psql postgres://${USER}:${USER}@localhost:28816/postgres -c "drop extension if exists clerk_fdw; create extension clerk_fdw;"
           cargo test
       - name: Test branch's version
+        env:
+          CI_BRANCH: ${{ steps.current-version.outputs.CI_BRANCH }}
         run: |
           git checkout $CI_BRANCH
           echo "\q" | cargo pgrx run
