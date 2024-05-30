@@ -42,10 +42,10 @@ jobs:
       - name: Install sys dependencies
         run: |
           sudo apt-get update && sudo apt-get install -y postgresql-server-dev-14
-      - name: Test previous version (main)
+      - name: Install and Test v0.2.4
         run: |
           git fetch --tags
-          git checkout main
+          git checkout tags/v0.2.4
           echo "\q" | cargo pgrx run
           psql postgres://${USER}:${USER}@localhost:28816/postgres -c "create extension if not exists clerk_fdw;"
           cargo test
