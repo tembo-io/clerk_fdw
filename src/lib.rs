@@ -17,7 +17,9 @@ use clerk_rs::{
     apis::organizations_api::Organization, apis::users_api::User, clerk::Clerk, ClerkConfiguration,
 };
 
-// TODO: will have to incorporate offset at some point
+use backoff::future::retry;
+use backoff::ExponentialBackoff;
+
 const PAGE_SIZE: usize = 500;
 
 fn body_to_rows(
@@ -236,15 +238,38 @@ impl ForeignDataWrapper<ClerkFdwError> for ClerkFdw {
                         info!("clerk_fdw: received total organizations: {}", total_orgs);
                         let mut i_org = 0;
                         for org in org_res.data.iter() {
-                            let membership_resp =
-                                OrganizationMembership::list_organization_memberships(
-                                    &self.clerk_client,
-                                    &org.id,
-                                    Some(PAGE_SIZE as f32),
-                                    None,
-                                )
-                                .await;
-
+                            let membership_resp = retry(ExponentialBackoff::default(), || {
+                                async {
+                                    OrganizationMembership::list_organization_memberships(
+                                        &self.clerk_client,
+                                        &org.id,
+                                        Some(PAGE_SIZE as f32),
+                                        None,
+                                    )
+                                    .await
+                                    .map_err(|e| match e {
+                                        clerk_rs::apis::Error::Reqwest(ref reqwest_error) => {
+                                            if let Some(status_code) = reqwest_error.status() {
+                                                match status_code {
+                                                    reqwest::StatusCode::TOO_MANY_REQUESTS |
+                                                    reqwest::StatusCode::BAD_GATEWAY |
+                                                    reqwest::StatusCode::SERVICE_UNAVAILABLE |
+                                                    reqwest::StatusCode::GATEWAY_TIMEOUT |
+                                                    reqwest::StatusCode::INTERNAL_SERVER_ERROR => {
+                                                        info!("clerk_fdw: received {} error, backing off", status_code);
+                                                        backoff::Error::transient(e)
+                                                    },
+                                                    _ => backoff::Error::Permanent(e),
+                                                }
+                                            } else {
+                                                backoff::Error::Permanent(e)
+                                            }
+                                        }
+                                        _ => backoff::Error::Permanent(e),
+                                    })
+                                }
+                            })
+                            .await;
                             match membership_resp {
                                 Ok(mem_res) => {
                                     i_org += 1;
@@ -264,8 +289,6 @@ impl ForeignDataWrapper<ClerkFdwError> for ClerkFdw {
                                     continue;
                                 }
                             }
-                            // Introduce a delay of 0.05 seconds
-                            std::thread::sleep(std::time::Duration::from_millis(50));
                         }
                         if org_res.data.len() < PAGE_SIZE {
                             info!("clerk_fdw: finished fetching all memberships, total={}", result.len());
@@ -279,7 +302,6 @@ impl ForeignDataWrapper<ClerkFdwError> for ClerkFdw {
                     }
                 }
             } else {
-                // this is where i need to make changes
                 let mut offset = 0;
                 loop {
                     let obj_js =
