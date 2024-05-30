@@ -53,7 +53,7 @@ jobs:
         run: |
           git checkout $CI_BRANCH
           echo "\q" | cargo pgrx run
-          psql postgres://${USER}:${USER}@localhost:28816/postgres -c "alter extension clerk_fdw update'"
+          psql postgres://${USER}:${USER}@localhost:28816/postgres -c "alter extension clerk_fdw update;"
           cargo test
       - name: Debugging information
         if: always()
