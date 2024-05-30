@@ -33,7 +33,7 @@ jobs:
         with:
           prefix-key: "extension-upgrade-test"
           workspaces: |
-            vectorize
+            clerk_fdw
           # Additional directories to cache
           cache-directories: |
             /home/runner/.pgrx
