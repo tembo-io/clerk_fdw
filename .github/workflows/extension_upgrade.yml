@@ -47,7 +47,7 @@ jobs:
           git fetch --tags
           git checkout tags/v0.3.0
           echo "\q" | cargo pgrx run
-          psql postgres://${USER}:${USER}@localhost:28816/postgres -c "create extension if not exists clerk_fdw;"
+          psql postgres://${USER}:${USER}@localhost:28816/postgres -c "drop extension if exists clerk_fdw; create extension clerk_fdw;"
           cargo test
       - name: Test branch's version
         run: |
