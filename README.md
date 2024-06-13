@@ -2,12 +2,14 @@
 
 This is a simple open-source data wrapper that bridges the gap between your Postgres database and [Clerk](https://clerk.com/) a leading user management solution. For more info, check out the [blog post](https://tembo.io/blog/clerk-fdw/)!
 
+[![Tembo Cloud Try Free](https://tembo.io/tryFreeButton.svg)](https://cloud.tembo.io/sign-up)
+
 [![Static Badge](https://img.shields.io/badge/%40tembo-community?logo=slack&label=slack)](https://join.slack.com/t/tembocommunity/shared_invite/zt-20dtnhcmo-pLNV7_Aobi50TdTLpfQ~EQ)
 [![PGXN version](https://badge.fury.io/pg/clerk_fdw.svg)](https://pgxn.org/dist/clerk_fdw/)
 
 ## Prerequisites
 
-- have the v0.2.7 of `clerk_fdw` extension enabled in your instance
+- have the v0.3.2 of `clerk_fdw` extension enabled in your instance
 
 Create the foreign data wrapper:
 
@@ -89,7 +91,7 @@ options (
 );
 ```
 
-NOTE: There is a 0.5-second sleep timer between each request so that we do not overload clerk servers. The response might take a while, and it is recommended that you store the information in a local table for quick access.
+NOTE: This query requires us to loop through all organizations. In case if we get rate-limited, the fdw implements exponential backoff with a max_interval of 15 minutes. The response might take a while, and it is recommended that you store the information in a local table for quick access.
 
 Query from the Foreign Table:
 `select * from clerk_users`
