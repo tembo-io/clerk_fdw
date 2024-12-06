@@ -184,8 +184,8 @@ impl From<ClerkFdwError> for ErrorReport {
 type ClerkFdwResult<T> = Result<T, ClerkFdwError>;
 
 impl ForeignDataWrapper<ClerkFdwError> for ClerkFdw {
-    fn new(options: &HashMap<String, String>) -> ClerkFdwResult<Self> {
-        let token = if let Some(access_token) = options.get("api_key") {
+    fn new(server: supabase_wrappers::prelude::ForeignServer) -> ClerkFdwResult<Self> {
+        let token = if let Some(access_token) = server.options.get("api_key") {
             access_token.to_owned()
         } else {
             warning!("Cannot find api_key in options");
@@ -224,11 +224,11 @@ impl ForeignDataWrapper<ClerkFdwError> for ClerkFdw {
         let run = self.rt.block_on(async {
             if obj == "organization_memberships" {
                 // Get all organizations first
-                let mut offset: f32 = 0.0;
+                let mut offset: u64 = 0;
                 loop {
                     let org_resp = Organization::list_organizations(
                         &self.clerk_client,
-                        Some(PAGE_SIZE as f32),
+                        Some(PAGE_SIZE as u64),
                         Some(offset),
                         None,
                         None,
@@ -244,7 +244,7 @@ impl ForeignDataWrapper<ClerkFdwError> for ClerkFdw {
                                     OrganizationMembership::list_organization_memberships(
                                         &self.clerk_client,
                                         &org.id,
-                                        Some(PAGE_SIZE as f32),
+                                        Some(PAGE_SIZE as u64),
                                         None,
                                     )
                                     .await
@@ -287,7 +287,7 @@ impl ForeignDataWrapper<ClerkFdwError> for ClerkFdw {
                             info!("clerk_fdw: finished fetching all memberships, total={}", result.len());
                             break;
                         } else {
-                            offset += PAGE_SIZE as f32;
+                            offset += PAGE_SIZE as u64;
                             info!("clerk_fdw: fetching more organizations, offset={}", offset);
                         }
                     } else {
@@ -310,8 +310,8 @@ impl ForeignDataWrapper<ClerkFdwError> for ClerkFdw {
                                     None,
                                     None,
                                     None,
-                                    Some(PAGE_SIZE as f32),
-                                    Some(offset as f32),
+                                    Some(PAGE_SIZE as u64),
+                                    Some(offset as u64),
                                     None,
                                 )
                                 .await
@@ -327,8 +327,8 @@ impl ForeignDataWrapper<ClerkFdwError> for ClerkFdw {
                             "organizations" => {
                                 match Organization::list_organizations(
                                     &self.clerk_client,
-                                    Some(PAGE_SIZE as f32),
-                                    Some(offset as f32),
+                                    Some(PAGE_SIZE as u64),
+                                    Some(offset as u64),
                                     None,
                                     None,
                                 )
