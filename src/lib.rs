@@ -393,3 +393,37 @@ impl ForeignDataWrapper<ClerkFdwError> for ClerkFdw {
         Ok(())
     }
 }
+
+/// This module is required by `cargo pgrx test` invocations.
+/// It must be visible at the root of your extension crate.
+#[cfg(test)]
+mod pg_test {
+    pub fn setup(_options: Vec<&str>) {
+        // perform one-off initialization when the pg_test framework starts
+    }
+
+    pub fn postgresql_conf_options() -> Vec<&'static str> {
+        // return any postgresql.conf settings that are required for your tests
+        vec![]
+    }
+}
+
+// pgrx tests.
+#[cfg(any(test, feature = "pg_test"))]
+#[pg_schema]
+mod tests {
+    use super::*;
+    #[pg_test]
+    fn create_fdw() {
+        // Just make sure it loads.
+        if let Err(e) = Spi::run(
+            r"
+            CREATE FOREIGN DATA WRAPPER clerk_wrapper
+            HANDLER   clerk_fdw_handler
+            VALIDATOR clerk_fdw_validator
+            ",
+        ) {
+            panic!("CREATE FAILED: {e}");
+        }
+    }
+}

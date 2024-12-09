@@ -42,39 +42,26 @@ jobs:
       - name: Clippy
         run: cargo clippy
 
-  # figure out how to test work
-  # test:
-  #   name: Run tests
-  #   runs-on: ubuntu-22.04
-  #   steps:
-  #     - uses: actions/checkout@v2
-  #     - name: Install Rust stable toolchain
-  #       uses: actions-rs/toolchain@v1
-  #       with:
-  #         toolchain: stable
-  #     - uses: Swatinem/rust-cache@v2
-  #       with:
-  #         prefix-key: "pgmq-extension-test"
-  #         workspaces: |
-  #           pgmq
-  #         # Additional directories to cache
-  #         cache-directories: |
-  #           /home/runner/.pgrx
-  #     - uses: ./.github/actions/pgx-init
-  #       with:
-  #         working-directory: ./
-  #     - name: test
-  #       run: |
-  #         sudo apt-get update && sudo apt-get install -y postgresql-server-dev-14
-  #         git clone https://github.com/pgpartman/pg_partman.git && \
-  #         cd pg_partman && \
-  #         sudo make install && cd ../
-  #         cp /usr/share/postgresql/14/extension/pg_partman* ~/.pgrx/15.4/pgrx-install/share/postgresql/extension/
-  #         cp /usr/lib/postgresql/14/lib/pg_partman_bgw.so ~/.pgrx/15.4/pgrx-install/lib/postgresql/
-  #         rm -rf ./target/pgrx-test-data-* || true
-  #         pg_version=$(stoml Cargo.toml features.default)
-  #         cargo pgrx run ${pg_version} --pgcli || true
-  #         cargo pgrx test ${pg_version}
+  test:
+    runs-on: ubuntu-latest
+    container: pgxn/pgxn-tools
+    strategy:
+      matrix:
+        pg: [14, 15, 16, 17]
+    name: 🐘 Postgres ${{ matrix.pg }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Start PostgreSQL ${{ matrix.pg }}
+        run: pg-start ${{ matrix.pg }}
+      - name: Setup Rust Cache
+        uses: Swatinem/rust-cache@v2
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Install pg_partman
+        run: pgxn install pg_partman
+      - name: Test on PostgreSQL ${{ matrix.pg }}
+        run: pgrx-build-test
 
   publish:
     # only publish release events
