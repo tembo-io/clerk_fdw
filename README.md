@@ -9,7 +9,7 @@ This is a simple open-source data wrapper that bridges the gap between your Post
 
 ## Prerequisites
 
-- have the v0.3.2 of `clerk_fdw` extension enabled in your instance
+- have the v0.3.3 of `clerk_fdw` extension enabled in your instance
 
 Create the foreign data wrapper:
 
