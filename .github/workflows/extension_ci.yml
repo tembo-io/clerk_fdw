@@ -19,19 +19,17 @@ on:
 jobs:
   lint:
     name: Run linters
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - name: Install Rust minimal nightly with clippy and rustfmt
-        uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v4
+      - name: Install Rust nightly with clippy and rustfmt
+        uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          profile: minimal
           toolchain: nightly
           components: rustfmt, clippy
-      - uses: Swatinem/rust-cache@v2
-        with:
-          prefix-key: "clerk_fdw-extension-lint"
-          # Update cache directories as needed
+          cache: true
+          cache-key: "tembo-clerk_fdw-lint"
+          cache-on-failure: true
           cache-directories: |
             /home/runner/.pgrx
       - uses: ./.github/actions/pgx-init
@@ -54,10 +52,13 @@ jobs:
         uses: actions/checkout@v4
       - name: Start PostgreSQL ${{ matrix.pg }}
         run: pg-start ${{ matrix.pg }}
-      - name: Setup Rust Cache
-        uses: Swatinem/rust-cache@v2
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+          cache: true
+          cache-key: "tembo-clerk_fdw-test"
+          cache-on-failure: true
       - name: Install pg_partman
         run: pgxn install pg_partman
       - name: Test on PostgreSQL ${{ matrix.pg }}
@@ -67,19 +68,19 @@ jobs:
     # only publish release events
     if: github.event_name == 'release'
     name: trunk publish
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         pg-version: [14, 15, 16, 17]
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Install Rust stable toolchain
-        uses: actions-rs/toolchain@v1
+        uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           toolchain: stable
-      - uses: Swatinem/rust-cache@v2
-        with:
-          prefix-key: "clerk_fdw-extension-test"
+          cache: true
+          cache-key: "tembo-clerk_fdw-publish"
+          cache-on-failure: true
           cache-directories: |
             /home/runner/.pgrx
       - name: Install stoml and pg-trunk

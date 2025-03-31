@@ -1,4 +1,3 @@
-
 name: Extension Upgrade
 
 defaults:
@@ -21,18 +20,17 @@ on:
 jobs:
   test:
     name: Upgrade Test
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repository content
         uses: actions/checkout@v4
       - name: Install Rust stable toolchain
-        uses: actions-rs/toolchain@v1
+        uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           toolchain: stable
-      - uses: Swatinem/rust-cache@v2
-        with:
-          prefix-key: "extension-upgrade-test"
-          workspaces: clerk_fdw
+          cache: true
+          cache-key: "tembo-clerk_fdw-test"
+          cache-on-failure: true
           cache-directories: |
             /home/runner/.pgrx
       - name: Get current version
