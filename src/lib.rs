@@ -371,7 +371,7 @@ impl ForeignDataWrapper<ClerkFdwError> for ClerkFdw {
             if !result.is_empty() {
                 let scanned = result
                     .drain(0..1)
-                    .last()
+                    .next_back()
                     .map(|src_row| row.replace_with(src_row));
                 return Ok(scanned);
             }

@@ -21,6 +21,12 @@ jobs:
     name: Run linters
     runs-on: ubuntu-latest
     steps:
+      - name: Install package dependencies
+        shell: bash
+        run: |
+          set -x
+          sudo apt update
+          sudo apt install -y build-essential pkg-config libreadline-dev bison flex libclang-dev
       - uses: actions/checkout@v4
       - name: Install Rust nightly with clippy and rustfmt
         uses: actions-rust-lang/setup-rust-toolchain@v1

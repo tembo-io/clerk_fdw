@@ -16,8 +16,6 @@ runs:
         mv stoml_linux_amd64 stoml
         chmod +x stoml
         sudo mv stoml /usr/local/bin/
-        sudo apt update
-        sudo apt install -y build-essential pkg-config readline
     - name: setup pgrx
       shell: bash
       id: pgrx_install
