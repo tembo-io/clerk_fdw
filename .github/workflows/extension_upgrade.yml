@@ -22,6 +22,12 @@ jobs:
     name: Upgrade Test
     runs-on: ubuntu-latest
     steps:
+      - name: Install package dependencies
+        shell: bash
+        run: |
+          set -x
+          sudo apt update
+          sudo apt install -y build-essential pkg-config libreadline-dev bison flex libclang-dev postgresql-server-dev-14
       - name: Checkout repository content
         uses: actions/checkout@v4
       - name: Install Rust stable toolchain
@@ -37,9 +43,6 @@ jobs:
         id: current-version
         run: echo "CI_BRANCH=$(git name-rev --name-only HEAD)" >> $GITHUB_OUTPUT
       - uses: ./.github/actions/pgx-init
-      - name: Install sys dependencies
-        run: |
-          sudo apt-get update && sudo apt-get install -y postgresql-server-dev-14
       - name: Install and Test v0.3.0
         run: |
           git fetch --tags
