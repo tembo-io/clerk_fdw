@@ -27,7 +27,7 @@ jobs:
         run: |
           set -x
           sudo apt update
-          sudo apt install -y build-essential pkg-config libreadline-dev bison flex libclang-dev postgresql-server-dev-14
+          sudo apt install -y build-essential pkg-config libreadline-dev bison flex libclang-dev postgresql-server-dev-16
       - name: Checkout repository content
         uses: actions/checkout@v4
       - name: Install Rust stable toolchain
