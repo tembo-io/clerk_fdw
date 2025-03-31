@@ -16,6 +16,8 @@ runs:
         mv stoml_linux_amd64 stoml
         chmod +x stoml
         sudo mv stoml /usr/local/bin/
+        sudo apt update
+        sudo apt install -y icu
     - name: setup pgrx
       shell: bash
       id: pgrx_install
@@ -35,7 +37,6 @@ runs:
       working-directory: ${{ inputs.working-directory }}
       run: |
         set -x
-        apt update && apt install -y icu
         pg_version=$(stoml Cargo.toml features.default)
         # pgrx init can take a long time, and it re-compiles postgres even when there
         # is a cached version. So, we can just check for the directory and
